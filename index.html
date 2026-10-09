@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Brain Champ</title>
+<meta name="description" content="Daily brain training: memory, attention, speed, maths, language and vocabulary games.">
+<meta name="theme-color" content="#0b0d1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Brain Champ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+<div class="bg" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="grain"></div>
+</div>
+
+<main id="app" class="app"></main>
+
+<nav class="tabbar" id="tabbar" aria-label="Main">
+  <button data-tab="home" class="tab active"><span class="tabicon" data-icon="home"></span><span>Today</span></button>
+  <button data-tab="train" class="tab"><span class="tabicon" data-icon="train"></span><span>Train</span></button>
+  <button data-tab="words" class="tab"><span class="tabicon" data-icon="words"></span><span>Words</span></button>
+  <button data-tab="stats" class="tab"><span class="tabicon" data-icon="stats"></span><span>Stats</span></button>
+</nav>
+
+<div id="overlay" class="overlay hidden"></div>
+<canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="words.js?v=4"></script>
+<script src="vocab-data.js?v=4"></script>
+<script src="engine.js?v=4"></script>
+<script src="games.js?v=4"></script>
+<script src="vocab.js?v=4"></script>
+<script src="app.js?v=4"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
