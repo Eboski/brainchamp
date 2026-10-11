@@ -79,7 +79,7 @@
           <circle class="track" cx="60" cy="60" r="${R}" fill="none" stroke-width="10"/><circle class="fill" cx="60" cy="60" r="${R}" fill="none" stroke-width="10" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg>
           <div class="center"><b>${done}/${plan.length}</b><span>games</span></div></div>
         <div class="herotext"><div class="t">${E.fmtDate(today()).split(',')[0]}'s session</div>
-          <div class="s">${complete ? `Brilliant. ${rec.total} points today. Come back tomorrow for a fresh set.` : done ? `${plan.length - done} games left. Pick up where you stopped.` : `${plan.length} games, about 8 minutes. Memory, attention, speed, maths, language and five new words.`}</div></div>
+          <div class="s">${complete ? `Brilliant. ${rec.total} points today. Come back tomorrow for a fresh set.` : done ? `${done} of ${plan.length} done. Your progress is saved, so pick up at <b>${game(nextDailyGame()).name}</b> whenever you like.` : `${plan.length} games, about 8 minutes. Memory, attention, speed, maths, language and five new words.`}</div></div>
         <button class="btn" id="startBtn">${complete ? E.ICONS.refresh + ' Free play' : done ? E.ICONS.play + ' Continue workout' : E.ICONS.play + ' Start workout'}</button>
       </div>
       <div class="chips"><span class="chip fire">${E.ICONS.flame.replace('<svg', '<svg width="16" height="16"')} ${st} day streak</span><span class="chip"><i class="dot"></i> Brain Index ${index}</span><span class="chip">${Vocab.learnedCount(state)} words learned</span></div>
@@ -234,6 +234,17 @@
     if (celebrate) { E.confetti(2600); E.sfx('complete'); E.buzz([30, 50, 30, 50, 100]); }
     r.querySelector('[data-a]').onclick = () => { E.sfx('tap'); r.remove(); exitGame(); };
   }
+
+  /* ---------------- pause when the app goes to the background mid-game ---------------- */
+  function showPause(){
+    if (document.querySelector('.pauseov') || !document.querySelector('.stage')) return;
+    E.paused = true;
+    const o = E.h(`<div class="pauseov"><div class="pausecard"><div class="label">Paused</div><div class="big">Timer stopped</div><div class="sub">Your workout progress is saved. Finish this game when you are ready.</div><button class="btn big block">${E.ICONS.play} Resume</button></div></div>`);
+    document.body.appendChild(o);
+    o.querySelector('button').onclick = () => { o.remove(); E.paused = false; E.sfx('tap'); };
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) showPause(); });
+  window.addEventListener('blur', () => { if (document.querySelector('.stage .timer:not(.hidden)')) showPause(); });
 
   /* ---------------- boot ---------------- */
   go('home');

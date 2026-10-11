@@ -1,5 +1,5 @@
 /* Brain Champ offline shell. Bump CACHE whenever files change so phones pick up the update. */
-const CACHE = 'brainchamp-v4';
+const CACHE = 'brainchamp-v5';
 const ASSETS = [
   './', './index.html', './styles.css', './engine.js', './games.js', './vocab.js', './vocab-data.js', './words.js', './app.js',
   './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-512-maskable.png', './icon-180.png'

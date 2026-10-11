@@ -2,6 +2,7 @@
 (function(){
   const E = window.Engine = {};
   E.settings = { sound:true, haptics:true };
+  E.paused = false;
 
   /* ---- DOM ---- */
   E.$ = (s, root=document) => root.querySelector(s);
@@ -118,7 +119,7 @@
   E.token = () => ({ dead:false, timers:[], kill(){ this.dead = true; this.timers.forEach(clearTimeout); this.intervals && this.intervals.forEach(clearInterval); } , intervals:[] });
   E.countdown = (seconds, onTick, onEnd, token) => {
     let left = seconds; onTick(left);
-    const id = setInterval(() => { if (token && token.dead) { clearInterval(id); return; } left--; onTick(left); if (left <= 0) { clearInterval(id); onEnd(); } }, 1000);
+    const id = setInterval(() => { if (token && token.dead) { clearInterval(id); return; } if (E.paused) return; left--; onTick(left); if (left <= 0) { clearInterval(id); onEnd(); } }, 1000);
     if (token) token.intervals.push(id);
     return { stop(){ clearInterval(id); }, get left(){ return left; } };
   };

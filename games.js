@@ -26,11 +26,11 @@
      ====================================================================== */
   G.register({
     id:'shapes', name:'Shape Recall', category:'memory',
-    tagline:'Shapes appear, then vanish. Remember where they were.',
+    tagline:'Shapes flash onto a grid, then vanish. Remember where, which and in what order.',
     par: 620,
     g:'linear-gradient(135deg,#7c5cff,#c084fc)', gc:'#7c5cff', gdim:'#2a1f55',
     icon: svgIcon(`<rect x="3" y="3" width="7" height="7" rx="2"/><circle cx="17.5" cy="6.5" r="3.5"/><path d="M6.5 14 10 21H3z"/><path d="M17.5 14l3.5 3.5-3.5 3.5-3.5-3.5z"/>`),
-    howto: ['Shapes pop up on the grid for a moment, then disappear.','Tap every spot where a shape was.','From level 8 you must tap where a <b>specific</b> shape was.','Perfect rounds level you up; misses level you down.'],
+    howto: ['Shapes pop onto the grid for a moment, then vanish. Tap every spot where one was.','From level 4: tap where a <b>specific</b> shape was.','From level 12: tap the spots in the <b>order</b> the shapes appeared.','Grids grow to 6×6 and the flash gets shorter. Perfect rounds level you up.'],
     async run(api){
       let level = api.level; const rounds = 5; let score = 0, hits = 0, tries = 0, perfects = 0;
       for (let r = 0; r < rounds; r++) {
@@ -47,10 +47,13 @@
       api.finish({ score, level, accuracy: hits / tries, stats:[{label:'Shapes found', value:`${hits}/${tries}`},{label:'Perfect rounds', value:`${perfects}/${rounds}`}] });
 
       function playRound(level, r){ return new Promise(async resolve => {
-        const size = level <= 3 ? 3 : level <= 8 ? 4 : level <= 14 ? 5 : 6;
-        const n = Math.min(2 + Math.ceil(level / 2), size * size - 2, 12);
-        const which = level >= 8;
-        api.prompt.innerHTML = `<div class="big">Watch carefully</div><div class="sub">${n} shapes on a ${size}×${size} grid</div>`;
+        // three modes: spots (L1-3) → which shape (L4-11) → tap in order of appearance (L12+)
+        const mode = level <= 3 ? 'spots' : level <= 11 ? 'which' : 'order';
+        const size = level <= 6 ? 4 : level <= 17 ? 5 : 6;
+        const n = Math.min(mode === 'spots' ? 3 + level : mode === 'which' ? 4 + Math.floor((level - 2) / 2) : 5 + Math.floor((level - 10) / 2), size * size - 3, 12);
+        const stagger = mode === 'order' ? 420 : 110;
+        const showTime = mode === 'order' ? 650 : Math.max(1100, 600 + n * 360 - level * 25);
+        api.prompt.innerHTML = `<div class="big">Watch carefully</div><div class="sub">${n} shapes · ${size}×${size}${mode === 'order' ? ' · remember the ORDER' : mode === 'which' ? ' · remember WHICH is where' : ''}</div>`;
         const grid = E.el('div', 'sgrid locked'); grid.style.gridTemplateColumns = `repeat(${size},1fr)`;
         const cells = range(size * size).map(() => { const c = E.el('div', 'cell'); grid.appendChild(c); return c; });
         api.arena.innerHTML = ''; api.arena.appendChild(grid);
@@ -59,19 +62,19 @@
         const names = E.sample(E.SHAPE_NAMES, n);
         const colors = E.shuffle(E.COLORS).concat(E.COLORS).slice(0, n);
         await E.wait(400, api.token); if (api.dead) return;
-        positions.forEach((p, i) => { cells[p].innerHTML = E.shapeSVG(names[i], colors[i], { cls:'shp' }); setTimeout(() => { cells[p].classList.add('show'); E.sfx('show'); }, 140 * i); });
-        const showTime = 900 + n * 420 + 140 * n;
-        await E.wait(showTime, api.token); if (api.dead) return;
+        positions.forEach((p, i) => { cells[p].innerHTML = E.shapeSVG(names[i], colors[i], { cls:'shp' }); setTimeout(() => { if (api.dead) return; cells[p].classList.add('show'); E.sfx('show'); }, stagger * i); });
+        await E.wait(stagger * (n - 1) + showTime, api.token); if (api.dead) return;
         positions.forEach(p => cells[p].classList.remove('show'));
         E.sfx('whoosh');
         await E.wait(380, api.token); if (api.dead) return;
         positions.forEach(p => cells[p].innerHTML = '');
 
         let hitsR = 0, points = 0, k = 0;
-        const order = E.shuffle(range(n));
+        const order = mode === 'order' ? range(n) : E.shuffle(range(n));
         const tapped = new Set();
         const setPrompt = () => {
-          if (which) api.prompt.innerHTML = `<div class="big" style="display:flex;align-items:center;gap:12px">Where was <span class="askshape">${E.shapeSVG(names[order[k]], colors[order[k]])}</span>?</div><div class="sub">${k + 1} of ${n}</div>`;
+          if (mode === 'which') api.prompt.innerHTML = `<div class="big" style="display:flex;align-items:center;gap:12px">Where was <span class="askshape">${E.shapeSVG(names[order[k]], colors[order[k]])}</span>?</div><div class="sub">${k + 1} of ${n}</div>`;
+          else if (mode === 'order') api.prompt.innerHTML = `<div class="big">Tap them in order</div><div class="sub">Shape ${k + 1} of ${n}: which appeared ${k === 0 ? 'first' : k === n - 1 ? 'last' : 'next'}?</div>`;
           else api.prompt.innerHTML = `<div class="big">Tap where they were</div><div class="sub">${n - k} left</div>`;
         };
         setPrompt();
@@ -86,16 +89,14 @@
         cells.forEach((cell, idx) => cell.addEventListener('pointerdown', () => {
           if (tapped.has(idx) || grid.classList.contains('locked')) return;
           tapped.add(idx);
-          let correct;
-          if (which) { correct = idx === positions[order[k]]; }
-          else { correct = positions.includes(idx); }
+          const correct = mode === 'spots' ? positions.includes(idx) : idx === positions[order[k]];
           if (correct) {
             const i = positions.indexOf(idx);
             cell.classList.add('hit'); cell.innerHTML = E.shapeSVG(names[i], colors[i]);
             hitsR++; points += 20 + 4 * level; E.sfx('good'); E.buzz(10);
           } else {
             cell.classList.add('miss'); E.sfx('bad'); E.buzz([20, 30, 20]); points = Math.max(0, points - 5);
-            if (which) { const i = positions.indexOf(positions[order[k]]); const real = cells[positions[order[k]]]; real.classList.add('reveal'); real.innerHTML = E.shapeSVG(names[i], colors[i]); tapped.add(positions[order[k]]); }
+            if (mode !== 'spots') { const target = positions[order[k]]; const i = positions.indexOf(target); const real = cells[target]; real.classList.add('reveal'); real.innerHTML = E.shapeSVG(names[i], colors[i]); tapped.add(target); }
           }
           k++; api.setScore(score + points);
           if (k >= n) done(); else setPrompt();
