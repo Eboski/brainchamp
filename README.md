@@ -14,8 +14,8 @@ No accounts, no ads, no server: an installable PWA that works offline and keeps 
 | Shape Recall | Memory | Shapes flash on a grid and vanish: tap the spots (L1-3), where a *specific* shape was (L4-11), or in order of appearance (L12+) |
 | Echo Path | Memory | Simon-style sequence (starts at 4, 16 pads from level 5, backwards rounds from level 9) |
 | Number Vault | Memory | Digit span from 4 digits: forwards, backwards (level 4+) and sorted (level 9+) |
-| Colour Clash | Attention | Stroop test: tap the ink colour, rule flips at higher levels |
-| Odd One Out | Attention | Spot the one shape that differs in hue, shape, size or rotation |
+| Colour Clash | Attention | Stroop test: ink vs word rule flips, shuffling buttons (L5+), per-word time limit (L8+) |
+| Odd One Out | Attention | Spot the one shape that differs in hue, brightness, shape, size or rotation; grids up to 7×7, board timeout (L8+) |
 | Speed Match | Speed | Does this card match the last one? 2-back from level 7 |
 | Quick Sums | Maths | Mental arithmetic with speed bonuses |
 | Letter Mix | Language | Unscramble 4-6 letter words |

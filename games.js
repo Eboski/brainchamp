@@ -233,11 +233,12 @@
     par: 650,
     g:'linear-gradient(135deg,#ff5fa2,#ff8a3d)', gc:'#ff5fa2', gdim:'#4a1a35',
     icon: svgIcon(`<circle cx="8" cy="8" r="4.5"/><circle cx="16" cy="8" r="4.5"/><circle cx="12" cy="15" r="4.5"/>`),
-    howto: ['A colour word appears, printed in a different colour.','Tap the button matching the <b>INK</b> colour, ignore what the word says.','From level 4 the rule sometimes flips to <b>WORD</b>. Watch the banner.','45 seconds, as many as you can.'],
+    howto: ['A colour word appears, printed in a different colour. Tap the <b>INK</b> colour, ignore the word.','From level 2 the rule flips to <b>WORD</b> and back without warning. Watch the banner.','From level 5 the buttons shuffle after every answer. From level 8 each word has a time limit.','45 seconds, as many as you can.'],
     async run(api){
       const level = api.level;
       const ALL = [{n:'RED',c:'#ff4d6d'},{n:'BLUE',c:'#3b82f6'},{n:'GREEN',c:'#22c55e'},{n:'YELLOW',c:'#facc15'},{n:'PURPLE',c:'#a855f7'},{n:'ORANGE',c:'#fb923c'}];
-      const set = ALL.slice(0, level >= 5 ? 6 : 4);
+      const set = ALL.slice(0, level >= 3 ? 6 : 4);
+      const limit = level >= 8 ? Math.max(1300, 2600 - (level - 8) * 120) : 0; let itemTimer = null;
       let rule = 'ink', untilSwitch = E.randInt(4, 7), score = 0, correct = 0, wrong = 0, streak = 0, best = 0, t0 = 0, cur;
       api.prompt.innerHTML = `<div class="rule">Tap the INK colour</div>`;
       const wrap = E.el('div', '', ''); wrap.style.cssText = 'display:grid;place-items:center;width:100%;min-height:120px';
@@ -248,14 +249,17 @@
       api.controls.innerHTML = ''; api.controls.appendChild(btns);
       const setRule = (r, flash) => { rule = r; const el = api.prompt.querySelector('.rule'); el.textContent = r === 'ink' ? 'Tap the INK colour' : 'Tap the WORD meaning'; if (flash) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); E.sfx('levelup'); E.buzz([20, 40, 20]); } };
       const next = () => {
-        if (level >= 4 && --untilSwitch <= 0) { untilSwitch = E.randInt(4, 7); setRule(rule === 'ink' ? 'word' : 'ink', true); }
-        const word = E.pick(set); let ink = Math.random() < 0.3 ? word : E.pick(set.filter(x => x !== word));
+        if (level >= 2 && --untilSwitch <= 0) { untilSwitch = level >= 8 ? E.randInt(2, 4) : E.randInt(3, 6); setRule(rule === 'ink' ? 'word' : 'ink', true); }
+        const word = E.pick(set); let ink = Math.random() < (level >= 6 ? 0.15 : 0.25) ? word : E.pick(set.filter(x => x !== word));
         cur = { word, ink };
-        wrap.innerHTML = `<div class="stroopword" style="color:${ink.c}">${word.n}</div>`;
+        wrap.innerHTML = `<div class="stroopword" style="color:${ink.c}">${word.n}</div>${limit ? `<div class="itembar"><i style="animation-duration:${limit}ms"></i></div>` : ''}`;
+        if (level >= 5) E.shuffle([...btns.children]).forEach(b => btns.appendChild(b));
         t0 = performance.now();
+        if (limit) { clearTimeout(itemTimer); itemTimer = setTimeout(tooSlow, limit); api.token.timers.push(itemTimer); }
       };
+      const tooSlow = () => { if (api.dead) return; if (E.paused) { itemTimer = setTimeout(tooSlow, 400); return; } wrong++; streak = 0; score = Math.max(0, score - 20); E.feedback(api.arena, 'Too slow', false); E.sfx('bad'); E.buzz([30, 30, 30]); sb.innerHTML = streakRow(0); api.setScore(score); next(); };
       const answer = (c) => {
-        if (api.dead) return;
+        if (api.dead) return; clearTimeout(itemTimer);
         const target = rule === 'ink' ? cur.ink : cur.word; const ms = performance.now() - t0;
         if (c === target) { correct++; streak++; best = Math.max(best, streak); const pts = 40 + (streak >= 4 ? 20 : 0) + speedBonus(ms, 800, 1400, 20, 10); score += pts; E.feedback(api.arena, '+' + pts, true); E.sfx('good'); E.buzz(8); }
         else { wrong++; streak = 0; score = Math.max(0, score - 20); E.feedback(api.arena, 'Wrong', false); E.sfx('bad'); E.buzz([30, 30, 30]); wrap.firstElementChild.classList.add('badf'); }
@@ -379,28 +383,32 @@
     par: 600,
     g:'linear-gradient(135deg,#ff7a59,#ffcf5a)', gc:'#ff7a59', gdim:'#4a2a20',
     icon: svgIcon(`<circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><rect x="14" y="14" width="6" height="6" rx="1.5" fill="currentColor" stroke="none"/>`),
-    howto: ['A grid of identical shapes appears, except one.','Tap the odd one. It may differ in colour, shape, size or rotation.','Grids get bigger and differences subtler as you level up.','45 seconds.'],
+    howto: ['A grid of identical shapes appears, except one. Tap the odd one.','It may differ in hue, brightness, shape, size or rotation, and the differences shrink as you level up.','Grids grow to 7×7. From level 8 each board has a time limit before it counts as a miss.','45 seconds.'],
     async run(api){
       const level = api.level; let score = 0, correct = 0, wrong = 0, t0 = 0;
       api.prompt.innerHTML = `<div class="big">Find the odd one</div><div class="sub">Tap it</div>`;
       api.controls.innerHTML = '';
-      const size = level <= 3 ? 3 : level <= 7 ? 4 : level <= 12 ? 5 : 6;
+      const size = level <= 2 ? 3 : level <= 5 ? 4 : level <= 9 ? 5 : level <= 14 ? 6 : 7;
+      const limit = level >= 8 ? Math.max(1800, 4500 - (level - 8) * 250) : 0; let boardTimer = null;
       const next = () => {
         const grid = E.el('div', 'ogrid'); grid.style.gridTemplateColumns = `repeat(${size},1fr)`;
         const base = E.pick(E.SHAPE_NAMES), color = E.pick(E.COLORS);
-        const types = ['hue', 'shape']; if (level >= 3) types.push('rotate'); if (level >= 6) types.push('size'); if (level >= 9) types.push('hue', 'hue');
+        let types = ['hue', 'shape']; if (level >= 2) types.push('rotate'); if (level >= 4) types.push('size'); if (level >= 6) types.push('light'); if (level >= 9) types.push('hue', 'light'); if (level >= 12) types = types.filter(t => t !== 'shape');
         const type = E.pick(types), odd = E.randInt(0, size * size - 1);
         let oddSVG;
-        if (type === 'hue') { const [h, s, l] = E.hexToHsl(color); const delta = Math.max(9, 38 - level * 2) * (Math.random() < .5 ? -1 : 1); oddSVG = E.shapeSVG(base, `hsl(${(h + delta + 360) % 360} ${s}% ${l}%)`); }
+        if (type === 'hue') { const [h, s, l] = E.hexToHsl(color); const delta = Math.max(6, 30 - level * 1.5) * (Math.random() < .5 ? -1 : 1); oddSVG = E.shapeSVG(base, `hsl(${(h + delta + 360) % 360} ${s}% ${l}%)`); }
+        else if (type === 'light') { const [h, s, l] = E.hexToHsl(color); const delta = Math.max(5, 14 - level * 0.5) * (l > 60 ? -1 : 1); oddSVG = E.shapeSVG(base, `hsl(${h} ${s}% ${Math.min(95, Math.max(15, l + delta))}%)`); }
         else if (type === 'shape') { const alt = E.pick(E.SHAPE_NAMES.filter(s => s !== base)); oddSVG = E.shapeSVG(alt, color); }
-        else if (type === 'rotate') { oddSVG = E.shapeSVG(base, color, { rotate: level >= 10 ? 18 : 30 }); }
-        else { oddSVG = E.shapeSVG(base, color, { scale: level >= 10 ? 0.86 : 0.78 }); }
+        else if (type === 'rotate') { oddSVG = E.shapeSVG(base, color, { rotate: level >= 12 ? 10 : level >= 7 ? 15 : 24 }); }
+        else { oddSVG = E.shapeSVG(base, color, { scale: level >= 12 ? 0.9 : level >= 7 ? 0.85 : 0.78 }); }
+        if (size >= 6) grid.style.gap = '5px';
         const normal = E.shapeSVG(base, color, { rotate: 0 });
         range(size * size).forEach(i => { const c = E.el('div', 'oc', i === odd ? oddSVG : normal); c.addEventListener('pointerdown', () => tap(i === odd, c)); grid.appendChild(c); });
         api.arena.innerHTML = ''; api.arena.appendChild(grid); t0 = performance.now();
+        if (limit) { api.prompt.innerHTML = `<div class="big">Find the odd one</div><div class="itembar"><i style="animation-duration:${limit}ms"></i></div>`; clearTimeout(boardTimer); const onBoardTimeout = () => { if (api.dead) return; if (E.paused) { boardTimer = setTimeout(onBoardTimeout, 400); return; } wrong++; score = Math.max(0, score - 10); api.setScore(score); const oddCell = grid.querySelectorAll('.oc')[odd]; if (oddCell) oddCell.classList.add('good'); E.feedback(api.arena, 'Too slow', false); E.sfx('bad'); setTimeout(next, 500); }; boardTimer = setTimeout(onBoardTimeout, limit); api.token.timers.push(boardTimer); }
       };
       const tap = (ok, cell) => {
-        if (api.dead) return; const ms = performance.now() - t0;
+        if (api.dead) return; const ms = performance.now() - t0; if (ok) clearTimeout(boardTimer);
         if (ok) { correct++; const pts = 45 + speedBonus(ms, 1500, 3000, 25, 10); score += pts; cell.classList.add('good'); E.feedback(api.arena, '+' + pts, true); E.sfx('good'); E.buzz(8); setTimeout(next, 160); }
         else { wrong++; score = Math.max(0, score - 20); cell.classList.add('badf'); E.sfx('bad'); E.buzz([30, 30, 30]); }
         api.setScore(score);

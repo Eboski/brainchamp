@@ -414,6 +414,11 @@ svg{display:block}
 .addrow .nameinput{flex:1;width:auto}
 .pads.big{gap:9px}
 
+/* per-item time limit bar */
+.itembar{width:140px;height:5px;border-radius:3px;background:rgba(255,255,255,.12);margin:12px auto 0;overflow:hidden}
+.itembar i{display:block;height:100%;background:linear-gradient(90deg,#ffb347,#ff5c7a);animation:shrink linear forwards}
+@keyframes shrink{from{width:100%}to{width:0}}
+
 /* pause overlay */
 .pauseov{position:fixed;inset:0;z-index:65;background:rgba(5,6,14,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:grid;place-items:center;padding:24px;animation:fadein .2s}
 .pausecard{width:100%;max-width:360px;background:#151830;border:1px solid var(--line);border-radius:28px;padding:26px 22px;text-align:center;animation:cardin .3s ease}
