@@ -5,7 +5,7 @@ No accounts, no ads, no server: an installable PWA that works offline and keeps 
 
 ## What's inside
 
-**Profiles**: Eboski and Damoski by default (add more from the profile chip on the home screen). Each profile keeps its own levels, streaks, stats and vocabulary.
+**Profiles**: the app opens on a profile picker. Eboski and Damoski by default; add or remove profiles right there. Each profile keeps its own levels, streaks, stats and vocabulary.
 
 **A daily workout of 8 games** (rotates every day, ~9 minutes):
 

@@ -105,7 +105,7 @@
     requestAnimationFrame(() => setTimeout(() => { const f = root.querySelector('.ring .fill'); if (f) f.style.strokeDashoffset = C * (1 - pct); }, 50));
     E.$('#startBtn', root).onclick = () => { E.sfx('tap'); if (complete) go('train'); else startDaily(); };
     E.$('#settingsBtn', root).onclick = openSettings;
-    E.$('#profileBtn', root).onclick = openProfiles;
+    E.$('#profileBtn', root).onclick = () => { E.sfx('tap'); renderPicker(); };
     root.querySelectorAll('[data-play]').forEach(b => b.onclick = () => { const id = b.dataset.play; E.sfx('tap'); if (rec && rec.games[id]) { playGame(id, { daily:false }); } else startDaily(id); });
   }
 
@@ -165,6 +165,34 @@
     E.$('#switchProfile').onclick = () => { close(); openProfiles(); };
     E.$$('.switch', ov).forEach(s => s.onclick = () => { state.settings[s.dataset.s] = !state.settings[s.dataset.s]; s.classList.toggle('on'); E.settings = state.settings; E.sfx('tap'); E.buzz(10); save(); });
     E.$('#resetBtn').onclick = () => { if (confirm(`Reset ALL progress for ${profiles.active}? This cannot be undone.`)) { state = defaults(); E.settings = state.settings; Vocab.init(state); save(); close(); E.toast('Progress reset'); } };
+  }
+
+  /* ---------------- PROFILE PICKER (landing screen) ---------------- */
+  function renderPicker(){
+    save();
+    document.body.classList.add('picking');
+    const old = E.$('.picker'); if (old) old.remove();
+    const cards = profiles.list.map(name => { const st = name === profiles.active ? state : loadFor(name); const sessions = Object.values(st.history).filter(r => r.complete).length; const todayDone = st.history[today()] && st.history[today()].complete;
+      return `<button class="pcard" data-p="${E.esc(name)}" style="--g:${avatarG(name)}"><span class="avatar xl" style="background:${avatarG(name)}">${E.esc(name[0].toUpperCase())}</span>
+        <span class="pname">${E.esc(name)}</span>
+        <span class="pstats"><span>${E.ICONS.flame.replace('<svg', '<svg width="13" height="13"')} ${streak(st)} day streak</span><span>Index ${bpi(st)}</span><span>${Vocab.learnedCount(st)} words</span></span>
+        <span class="pfoot">${todayDone ? 'Today\'s workout done ✓' : sessions ? `${sessions} workout${sessions === 1 ? '' : 's'} completed` : 'New player'}</span>
+        ${profiles.list.length > 1 ? `<span class="pdel" data-del="${E.esc(name)}" title="Remove profile">${E.ICONS.close}</span>` : ''}</button>`; }).join('');
+    const el = E.h(`<div class="picker"><div class="pickerin">
+      <div class="brand"><img src="icon-192.png" alt="" width="64" height="64"><div><div class="brandname">Brain <span class="gradtext">Champ</span></div><div class="brandsub">${E.fmtDate(today())}</div></div></div>
+      <h2 class="h2" style="margin-top:28px">Who's training today?</h2>
+      <div class="pgrid">${cards}</div>
+      <div class="addrow"><input class="nameinput" id="newProfile" placeholder="Add a profile…" maxlength="16" autocomplete="off"><button class="btn sm" id="addProfile">Add</button></div>
+    </div></div>`);
+    document.body.appendChild(el);
+    const choose = (name) => { el.remove(); document.body.classList.remove('picking'); if (name !== profiles.active) switchProfile(name); else go('home'); };
+    E.$$('.pcard', el).forEach(c => c.onclick = (e) => {
+      const del = e.target.closest('.pdel');
+      if (del) { e.stopPropagation(); const n = del.dataset.del; if (!confirm(`Remove ${n} and delete all their progress? This cannot be undone.`)) return; profiles.list = profiles.list.filter(x => x !== n); try { localStorage.removeItem(skey(n)); } catch(err){} if (profiles.active === n) { profiles.active = profiles.list[0]; state = load(); E.settings = state.settings; Vocab.init(state); save(); } saveProfiles(); E.toast(`Removed ${n}`); renderPicker(); return; }
+      E.sfx('tap'); E.buzz(10); choose(c.dataset.p); });
+    E.$('#addProfile', el).onclick = () => { const n = E.$('#newProfile', el).value.trim().replace(/[^\w .-]/g, ''); if (!n) return; if (profiles.list.some(x => x.toLowerCase() === n.toLowerCase())) { E.toast('That name is taken'); return; } profiles.list.push(n); saveProfiles(); E.sfx('levelup'); choose(n); };
+    E.$('#newProfile', el).addEventListener('keydown', e => { if (e.key === 'Enter') E.$('#addProfile', el).click(); });
+    window.scrollTo(0, 0);
   }
 
   /* ---------------- PROFILES sheet ---------------- */
@@ -282,9 +310,9 @@
   window.addEventListener('blur', () => { if (document.querySelector('.stage .timer:not(.hidden)')) showPause(); });
 
   /* ---------------- boot ---------------- */
-  go('home');
+  renderPicker();
   // keep the day fresh if the app stays open past midnight
-  let lastDay = today(); setInterval(() => { if (today() !== lastDay) { lastDay = today(); if (!document.body.classList.contains('ingame')) go(tab); } }, 30000);
+  let lastDay = today(); setInterval(() => { if (today() !== lastDay) { lastDay = today(); if (!document.body.classList.contains('ingame') && !document.body.classList.contains('picking')) go(tab); } }, 30000);
   // iOS: block double-tap zoom in game areas
   let lastTouch = 0; document.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTouch < 300) e.preventDefault(); lastTouch = now; }, { passive:false });
 })();
