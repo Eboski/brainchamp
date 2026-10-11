@@ -114,16 +114,17 @@
     par: 520,
     g:'linear-gradient(135deg,#38b6ff,#7c5cff)', gc:'#38b6ff', gdim:'#1a2a55',
     icon: svgIcon(`<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" stroke="none" opacity=".9"/><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" stroke="none" opacity=".5"/><rect x="13" y="13" width="8" height="8" rx="2"/>`),
-    howto: ['Nine pads light up one after another.','Tap them back in the same order.','Each correct round adds one more step.','You have three lives.'],
+    howto: ['Pads light up one after another. Tap them back in the same order.','Each correct round adds a step. Sequences start at 4 and the pads speed up.','From level 5 the grid grows to 16 pads. From level 9 alternate rounds must be repeated <b>backwards</b>.','Three lives.'],
     async run(api){
       const level = api.level;
-      const PC = ['#ff5c7a','#ffb347','#ffe95a','#2ee6a6','#38b6ff','#7c5cff','#b57bff','#ff8a3d','#4fffd0'];
-      const startLen = 3 + Math.floor((level - 1) / 2);
+      const PC = ['#ff5c7a','#ffb347','#ffe95a','#2ee6a6','#38b6ff','#7c5cff','#b57bff','#ff8a3d','#4fffd0','#f472b6','#a3e635','#22d3ee','#fb7185','#fcd34d','#34d399','#818cf8'];
+      const gridN = level >= 5 ? 4 : 3, padsN = gridN * gridN;
+      const startLen = 4 + Math.floor(level / 2);
       let len = startLen, lives = 3, score = 0, maxLen = startLen - 1, round = 0;
-      const onMs = Math.max(260, 620 - level * 18), gap = 150;
+      const onMs = Math.max(220, 520 - level * 18), gap = 120;
       api.prompt.innerHTML = `<div class="big">Watch</div><div class="sub">Sequence of ${len}</div>`;
-      const pads = E.el('div', 'pads locked'); pads.style.setProperty('--pc', '#fff');
-      const padEls = range(9).map(i => { const p = E.el('button', 'pad'); p.style.setProperty('--pc', PC[i]); pads.appendChild(p); return p; });
+      const pads = E.el('div', 'pads locked'); pads.style.setProperty('--pc', '#fff'); pads.style.gridTemplateColumns = `repeat(${gridN},1fr)`;
+      const padEls = range(padsN).map(i => { const p = E.el('button', 'pad'); p.style.setProperty('--pc', PC[i]); pads.appendChild(p); return p; });
       const livesEl = E.el('div', 'lives', '<i></i><i></i><i></i>');
       api.arena.innerHTML = ''; api.arena.appendChild(pads); api.arena.appendChild(livesEl);
       const light = async (i) => { padEls[i].classList.add('lit'); E.sfx('pad', i); await E.wait(onMs, api.token); padEls[i].classList.remove('lit'); await E.wait(gap, api.token); };
@@ -131,12 +132,13 @@
 
       while (lives > 0 && round < 8 && !api.dead) {
         api.setProgress(round / 8);
-        const seq = []; for (let i = 0; i < len; i++) { let p; do { p = E.randInt(0, 8); } while (p === seq[i - 1]); seq.push(p); }
-        api.prompt.innerHTML = `<div class="big">Watch</div><div class="sub">Sequence of ${len}</div>`;
+        const seq = []; for (let i = 0; i < len; i++) { let p; do { p = E.randInt(0, padsN - 1); } while (p === seq[i - 1]); seq.push(p); }
+        const reverse = level >= 9 && round % 2 === 1; const expected = reverse ? seq.slice().reverse() : seq;
+        api.prompt.innerHTML = `<div class="big">Watch</div><div class="sub">Sequence of ${len}${reverse ? ' · you will repeat it BACKWARDS' : ''}</div>`;
         pads.classList.add('locked');
         await E.wait(700, api.token);
         for (const s of seq) { if (api.dead) return; await light(s); }
-        api.prompt.innerHTML = `<div class="big">Your turn</div><div class="sub">Repeat the ${len} steps</div>`;
+        api.prompt.innerHTML = `<div class="big">${reverse ? 'Repeat it BACKWARDS' : 'Your turn'}</div><div class="sub">${reverse ? 'Last pad first' : 'Repeat the ' + len + ' steps'}</div>`;
         pads.classList.remove('locked');
         const ok = await new Promise(resolve => {
           let k = 0; const handlers = [];
@@ -144,7 +146,7 @@
           padEls.forEach((p, i) => { const fn = () => {
             if (pads.classList.contains('locked')) return;
             p.classList.add('lit'); setTimeout(() => p.classList.remove('lit'), 180);
-            if (i === seq[k]) { E.sfx('pad', i); E.buzz(8); k++; api.prompt.querySelector('.sub').textContent = `${len - k} to go`; if (k === seq.length) { cleanup(); resolve(true); } }
+            if (i === expected[k]) { E.sfx('pad', i); E.buzz(8); k++; api.prompt.querySelector('.sub').textContent = `${len - k} to go`; if (k === expected.length) { cleanup(); resolve(true); } }
             else { E.sfx('bad'); E.buzz([30, 40, 30]); cleanup(); resolve(false); }
           }; p.addEventListener('pointerdown', fn); handlers.push([p, fn]); });
         });
@@ -328,21 +330,21 @@
     par: 560,
     g:'linear-gradient(135deg,#5b6cff,#38e6ff)', gc:'#5b6cff', gdim:'#1a2050',
     icon: svgIcon(`<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="12" r="4"/><path d="M12 10v2l1.5 1"/>`),
-    howto: ['Digits appear one at a time, then disappear.','Type the full number back on the keypad.','From level 6, some rounds ask for it <b>backwards</b>.','Six rounds; perfect rounds level you up.'],
+    howto: ['Digits flash one at a time (starting at 4), then disappear. Type them back.','From level 4 alternate rounds want them <b>backwards</b>.','From level 9 every third round wants them <b>sorted</b> smallest to largest.','Six rounds; perfect rounds level you up, the flashes get faster.'],
     async run(api){
       let level = api.level; const rounds = 6; let score = 0, perfect = 0, digitsRight = 0, digitsTotal = 0;
       for (let r = 0; r < rounds; r++) {
         if (api.dead) return; api.setProgress(r / rounds);
-        const len = Math.min(3 + Math.floor(level / 2), 12), backwards = level >= 6 && r % 2 === 1;
+        const len = Math.min(4 + Math.floor(level / 2), 12); const mode = level >= 9 && r % 3 === 2 ? 'sorted' : level >= 4 && r % 2 === 1 ? 'backwards' : 'forward';
         const digits = range(len).map(() => E.randInt(0, 9));
-        const target = backwards ? digits.slice().reverse() : digits;
-        api.prompt.innerHTML = `<div class="big">Memorise</div><div class="sub">${len} digits${backwards ? ' · you will enter them BACKWARDS' : ''}</div>`;
+        const target = mode === 'backwards' ? digits.slice().reverse() : mode === 'sorted' ? digits.slice().sort((a, b) => a - b) : digits;
+        api.prompt.innerHTML = `<div class="big">Memorise</div><div class="sub">${len} digits${mode === 'backwards' ? ' · you will enter them BACKWARDS' : mode === 'sorted' ? ' · you will enter them SMALLEST to LARGEST' : ''}</div>`;
         api.controls.innerHTML = ''; api.arena.innerHTML = '';
         await E.wait(600, api.token);
-        const per = Math.max(380, 720 - level * 18);
+        const per = Math.max(320, 640 - level * 20);
         for (const d of digits) { if (api.dead) return; api.arena.innerHTML = `<div class="digitshow">${d}</div>`; E.sfx('tick'); await E.wait(per, api.token); api.arena.innerHTML = ''; await E.wait(130, api.token); }
         if (api.dead) return;
-        api.prompt.innerHTML = `<div class="big">${backwards ? 'Enter it BACKWARDS' : 'Enter the number'}</div><div class="sub">${len} digits</div>`;
+        api.prompt.innerHTML = `<div class="big">${mode === 'backwards' ? 'Enter it BACKWARDS' : mode === 'sorted' ? 'Smallest to largest' : 'Enter the number'}</div><div class="sub">${len} digits</div>`;
         const entry = E.el('div', 'entry', range(len).map((_, i) => `<i class="${i === 0 ? 'cur' : ''}"></i>`).join('')); api.arena.appendChild(entry);
         const pad = E.el('div', 'keypad'); api.arena.appendChild(pad);
         const typed = [];
@@ -461,6 +463,68 @@
         let newLevel = level; if (clean >= 10) newLevel = clampLevel(level + 2); else if (clean >= 6) newLevel = clampLevel(level + 1); else if (solved <= 2) newLevel = clampLevel(level - 1);
         api.finish({ score, level: newLevel, accuracy: null, stats:[{label:'Words solved', value: solved},{label:'Skipped', value: skipped}] });
       }, api.token);
+    }
+  });
+  /* ======================================================================
+     9. WORD FIT — grammar and usage
+     ====================================================================== */
+  G.register({
+    id:'grammar', name:'Word Fit', category:'language',
+    tagline:'Fill the gap with the word a careful writer would choose.',
+    par: 900,
+    g:'linear-gradient(135deg,#0ea5e9,#8b5cf6)', gc:'#0ea5e9', gdim:'#162a4a',
+    icon: svgIcon(`<path d="M4 7h16M4 12h6M4 17h10"/><path d="M14 13l2.5 2.5L21 11"/>`),
+    howto: ['A sentence has one word missing. Pick the option a careful native speaker would use.','The wrong options are the classic traps: who/whom, lie/lay, fewer/less, affect/effect and worse.','Every answer comes with a one-line explanation, right or wrong.','12 questions. Harder traps unlock as you level up. Questions never repeat until you have seen them all.'],
+    async run(api){
+      const level = api.level, state = api.state, total = 12; let score = 0, correct = 0, streak = 0, best = 0;
+      const bank = window.GRAMMAR;
+      state.grammarSeen = state.grammarSeen || [];
+      const weights = level <= 4 ? { 1:.5, 2:.4, 3:.1 } : level <= 10 ? { 1:.2, 2:.5, 3:.3 } : { 1:0, 2:.35, 3:.65 };
+      const pickSet = () => {
+        let unseen = bank.map((q, i) => i).filter(i => !state.grammarSeen.includes(i));
+        if (unseen.length < total) { state.grammarSeen = []; unseen = bank.map((q, i) => i); }
+        const chosen = [];
+        for (let k = 0; k < total; k++) {
+          const r = Math.random(); const want = r < weights[1] ? 1 : r < weights[1] + weights[2] ? 2 : 3;
+          let pool = unseen.filter(i => !chosen.includes(i) && bank[i].d === want);
+          if (!pool.length) pool = unseen.filter(i => !chosen.includes(i));
+          chosen.push(E.pick(pool));
+        }
+        return E.shuffle(chosen);
+      };
+      const qs = pickSet();
+      api.controls.innerHTML = '';
+      for (let n = 0; n < total; n++) {
+        if (api.dead) return;
+        const qi = qs[n], Q = bank[qi];
+        api.setProgress(n / total);
+        api.prompt.innerHTML = `<div class="sub">Question ${n + 1} of ${total} · ${['','easy','tricky','expert'][Q.d]}</div>`;
+        api.arena.innerHTML = `<div class="question" style="--g:${G.byId.grammar.g}"><span class="qtype">Fill the gap</span>${E.esc(Q.s).replace('___', '<span class="blank"></span>')}</div>`;
+        const opts = E.el('div', 'options'); api.arena.appendChild(opts);
+        const order = E.shuffle(Q.o.map((o, i) => i)); const t0 = performance.now();
+        const ok = await new Promise(resolve => {
+          order.forEach(oi => { const b = E.el('button', '', E.esc(Q.o[oi])); b.onclick = () => {
+            if (opts.classList.contains('done')) return; opts.classList.add('done');
+            const right = oi === Q.a; const ms = performance.now() - t0;
+            E.$$('button', opts).forEach((x, k) => { const id = order[k]; if (id === Q.a) x.classList.add('good'); else if (x === b) x.classList.add('badf'); else x.classList.add('dim'); });
+            if (right) { streak++; best = Math.max(best, streak); const pts = 80 + (streak >= 3 ? 20 : 0) + speedBonus(ms, 4000, 8000, 30, 15); score += pts; E.feedback(api.arena, '+' + pts, true); E.sfx('good'); E.buzz(10); }
+            else { streak = 0; E.feedback(api.arena, 'Not quite', false); E.sfx('bad'); E.buzz([30, 30, 30]); }
+            api.setScore(score);
+            const full = E.el('div', 'sub', `<b style="color:var(--text)">${E.esc(Q.s).replace('___', '<u>' + E.esc(Q.o[Q.a]) + '</u>')}</b><br>${E.esc(Q.x)}`);
+            full.style.cssText = 'color:var(--muted);text-align:center;margin-top:14px;font-size:14px;line-height:1.45;padding:0 6px';
+            opts.after(full);
+            const nb = E.h(`<button class="btn g block" style="--g:${G.byId.grammar.g}">${n + 1 < total ? 'Next' : 'Finish'} ${E.ICONS.chev}</button>`);
+            api.controls.innerHTML = ''; api.controls.appendChild(nb);
+            nb.onclick = () => { E.sfx('tap'); api.controls.innerHTML = ''; resolve(right); };
+          }; opts.appendChild(b); });
+        });
+        if (api.dead) return;
+        if (ok) correct++;
+        state.grammarSeen.push(qi); api.save();
+      }
+      api.setProgress(1);
+      let newLevel = level; if (correct >= 12) newLevel = clampLevel(level + 2); else if (correct >= 10) newLevel = clampLevel(level + 1); else if (correct <= 7) newLevel = clampLevel(level - 1);
+      api.finish({ score, level: newLevel, accuracy: correct / total, stats:[{label:'Correct', value:`${correct}/${total}`},{label:'Best streak', value: best}], note: correct === total ? 'Flawless. A careful writer.' : `${bank.length - state.grammarSeen.length} questions still unseen` });
     }
   });
 })();

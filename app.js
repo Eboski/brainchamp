@@ -1,15 +1,30 @@
 /* ============ Brain Champ — app shell: state, screens, daily workout flow ============ */
 (function(){
   const E = Engine, G = Games;
-  const KEY = 'brainchamp.v1';
-  const DAILY_COUNT = 7;
+  /* ---------------- profiles ---------------- */
+  const PKEY = 'brainchamp.profiles', LEGACY = 'brainchamp.v1';
+  const skey = (name) => 'brainchamp.p.' + name;
+  const loadProfiles = () => { try { const p = JSON.parse(localStorage.getItem(PKEY)); if (p && Array.isArray(p.list) && p.list.length && p.list.includes(p.active)) return p; } catch(e){} return { list:['Eboski', 'Damoski'], active:'Eboski' }; };
+  let profiles = loadProfiles();
+  const saveProfiles = () => { try { localStorage.setItem(PKEY, JSON.stringify(profiles)); } catch(e){} };
+  try { const old = localStorage.getItem(LEGACY); if (old) { if (!localStorage.getItem(skey(profiles.list[0]))) localStorage.setItem(skey(profiles.list[0]), old); localStorage.removeItem(LEGACY); } } catch(e){}
+  saveProfiles();
+  const AVATARS = ['linear-gradient(135deg,#7c5cff,#38b6ff)', 'linear-gradient(135deg,#ff5fa2,#ffb347)', 'linear-gradient(135deg,#2ee6a6,#0ea5e9)', 'linear-gradient(135deg,#f43f8e,#7c5cff)', 'linear-gradient(135deg,#ffb347,#ff5c7a)'];
+  const avatarG = (name) => AVATARS[Math.max(0, profiles.list.indexOf(name)) % AVATARS.length];
 
   /* ---------------- state ---------------- */
-  const defaults = () => ({ settings:{ sound:true, haptics:true, name:'' }, levels:{}, best:{}, history:{}, cat:{}, vocab:null, created: E.todayKey(), bpiHist:{} });
+  const defaults = () => ({ settings:{ sound:true, haptics:true }, levels:{}, best:{}, history:{}, cat:{}, vocab:null, created: E.todayKey(), bpiHist:{} });
   let state;
-  const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.settings) return Object.assign(defaults(), s); } catch(e){} return defaults(); };
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} };
+  const loadFor = (name) => { try { const s = JSON.parse(localStorage.getItem(skey(name))); if (s && s.settings) return Object.assign(defaults(), s); } catch(e){} return defaults(); };
+  const load = () => loadFor(profiles.active);
+  const save = () => { try { localStorage.setItem(skey(profiles.active), JSON.stringify(state)); } catch(e){} };
   state = load(); E.settings = state.settings; Vocab.init(state); save();
+  function switchProfile(name){
+    if (!profiles.list.includes(name)) return;
+    save(); profiles.active = name; saveProfiles();
+    state = load(); E.settings = state.settings; Vocab.init(state); save();
+    E.toast(`Playing as ${name}`); go('home');
+  }
 
   const level = (id) => state.levels[id] || 1;
   const game = (id) => G.byId[id];
@@ -20,7 +35,7 @@
     const d = E.dayIndex(dateKey), rand = E.mulberry(d * 7919 + 13);
     const mem = [['shapes','echo'],['shapes','vault'],['echo','vault']][d % 3];
     const att = ['stroop','oddone'][d % 2];
-    let list = E.shuffle([mem[0], mem[1], att, 'speedmatch', 'sums', 'scramble'], rand);
+    let list = E.shuffle([mem[0], mem[1], att, 'speedmatch', 'sums', 'scramble', 'grammar'], rand);
     if (list.includes('shapes')) { list = ['shapes', ...list.filter(x => x !== 'shapes')]; }
     list.push('lexicon');
     return list;
@@ -29,8 +44,8 @@
   const dayRec = (k = today()) => { if (!state.history[k]) state.history[k] = { games:{}, free:{}, complete:false, total:0 }; return state.history[k]; };
   const doneToday = () => { const r = state.history[today()]; return r ? Object.keys(r.games).length : 0; };
   const nextDailyGame = () => planFor(today()).find(id => !(state.history[today()] && state.history[today()].games[id]));
-  const streak = () => { let n = 0, k = today(); if (!(state.history[k] && state.history[k].complete)) k = E.addDays(k, -1); while (state.history[k] && state.history[k].complete) { n++; k = E.addDays(k, -1); } return n; };
-  const bpi = () => { const vals = Object.values(state.cat); return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0; };
+  const streak = (st = state) => { let n = 0, k = today(); if (!(st.history[k] && st.history[k].complete)) k = E.addDays(k, -1); while (st.history[k] && st.history[k].complete) { n++; k = E.addDays(k, -1); } return n; };
+  const bpi = (st = state) => { const vals = Object.values(st.cat); return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0; };
   const norm = (id, score) => Math.min(1000, Math.round(score / game(id).par * 500));
 
   const record = (id, result, daily) => {
@@ -58,7 +73,7 @@
   E.$$('.tab').forEach(b => { b.querySelector('.tabicon').innerHTML = E.ICONS[b.dataset.icon || b.dataset.tab] || E.ICONS[b.querySelector('.tabicon').dataset.icon]; b.onclick = () => { E.sfx('tap'); go(b.dataset.tab); }; });
   function go(t){ tab = t; E.$$('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t)); app.innerHTML = ''; const s = E.el('div', 'screen'); app.appendChild(s); tabs[t](s); window.scrollTo(0, 0); }
 
-  const greeting = () => { const h = new Date().getHours(); const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; return state.settings.name ? `${g}, ${E.esc(state.settings.name)}` : g; };
+  const greeting = () => { const h = new Date().getHours(); const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; return `${g}, ${E.esc(profiles.active)}`; };
   const gameTile = (id, i, rec) => { const g = game(id), c = cat(id), done = rec && rec.games[id];
     return `<button class="gcard ${done ? 'done' : ''} ${!done && nextDailyGame() === id ? 'next' : ''}" data-play="${id}" style="--g:${g.g};--gc:${g.gc};--gc2:${g.gc}">
       <div class="tile">${g.icon}</div>
@@ -73,7 +88,7 @@
     const days = Array.from({ length: 7 }, (_, i) => E.addDays(today(), i - 6));
     root.innerHTML = `
       <div class="topline"><div><div class="greet">${greeting()}</div><h1 class="h1">${complete ? 'Workout <span class="gradtext">complete</span>' : done ? 'Keep <span class="gradtext">going</span>' : 'Daily <span class="gradtext">workout</span>'}</h1></div>
-        <button class="iconbtn" id="settingsBtn" aria-label="Settings">${E.ICONS.gear}</button></div>
+        <div style="display:flex;gap:8px;align-items:center"><button class="profilechip" id="profileBtn" aria-label="Switch profile"><span class="avatar" style="background:${avatarG(profiles.active)}">${E.esc(profiles.active[0].toUpperCase())}</span>${E.esc(profiles.active)}</button><button class="iconbtn" id="settingsBtn" aria-label="Settings">${E.ICONS.gear}</button></div></div>
       <div class="card glow hero">
         <div class="ring"><svg viewBox="0 0 120 120"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset=".55" stop-color="#ff5fa2"/><stop offset="1" stop-color="#ffb347"/></linearGradient></defs>
           <circle class="track" cx="60" cy="60" r="${R}" fill="none" stroke-width="10"/><circle class="fill" cx="60" cy="60" r="${R}" fill="none" stroke-width="10" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg>
@@ -90,6 +105,7 @@
     requestAnimationFrame(() => setTimeout(() => { const f = root.querySelector('.ring .fill'); if (f) f.style.strokeDashoffset = C * (1 - pct); }, 50));
     E.$('#startBtn', root).onclick = () => { E.sfx('tap'); if (complete) go('train'); else startDaily(); };
     E.$('#settingsBtn', root).onclick = openSettings;
+    E.$('#profileBtn', root).onclick = openProfiles;
     root.querySelectorAll('[data-play]').forEach(b => b.onclick = () => { const id = b.dataset.play; E.sfx('tap'); if (rec && rec.games[id]) { playGame(id, { daily:false }); } else startDaily(id); });
   }
 
@@ -137,18 +153,37 @@
     const ov = E.$('#overlay'); ov.classList.remove('hidden');
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent), standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
     ov.innerHTML = `<div class="sheet"><div class="grab"></div><h3>Settings</h3>
-      <div class="setrow"><div class="l">Your name<small>For the greeting</small></div><input class="nameinput" id="nameIn" value="${E.esc(state.settings.name)}" placeholder="Name" maxlength="20"></div>
+      <div class="setrow"><div class="l">Profile<small>Playing as ${E.esc(profiles.active)}. Each profile keeps its own levels, streaks and words.</small></div><button class="btn ghost sm" id="switchProfile">Switch</button></div>
       <div class="setrow"><div class="l">Sound effects<small>Synthesised blips and chimes</small></div><button class="switch ${state.settings.sound ? 'on' : ''}" data-s="sound"></button></div>
       <div class="setrow"><div class="l">Haptics<small>Vibration on taps (Android)</small></div><button class="switch ${state.settings.haptics ? 'on' : ''}" data-s="haptics"></button></div>
       ${standalone ? '' : `<div class="installbox" style="margin-top:14px"><b>Install on your phone</b><br>${ios ? 'In Safari tap the Share button, then <b>Add to Home Screen</b>.' : 'Open the browser menu (⋮) and tap <b>Install app</b> or <b>Add to Home screen</b>.'} It then opens full-screen like a native app and works offline.</div>`}
-      <div class="setrow" style="margin-top:8px"><div class="l">Reset all progress<small>Levels, scores, vocabulary. Cannot be undone.</small></div><button class="textbtn" id="resetBtn">Reset</button></div>
+      <div class="setrow" style="margin-top:8px"><div class="l">Reset ${E.esc(profiles.active)}'s progress<small>Levels, scores, vocabulary for this profile only. Cannot be undone.</small></div><button class="textbtn" id="resetBtn">Reset</button></div>
       <button class="btn ghost block" id="closeSheet" style="margin-top:12px">Done</button></div>`;
     ov.onclick = e => { if (e.target === ov) close(); };
     const close = () => { ov.classList.add('hidden'); ov.innerHTML = ''; save(); go(tab); };
     E.$('#closeSheet').onclick = close;
-    E.$('#nameIn').oninput = e => { state.settings.name = e.target.value.trim(); };
+    E.$('#switchProfile').onclick = () => { close(); openProfiles(); };
     E.$$('.switch', ov).forEach(s => s.onclick = () => { state.settings[s.dataset.s] = !state.settings[s.dataset.s]; s.classList.toggle('on'); E.settings = state.settings; E.sfx('tap'); E.buzz(10); save(); });
-    E.$('#resetBtn').onclick = () => { if (confirm('Reset ALL progress? This cannot be undone.')) { const name = state.settings.name; state = defaults(); state.settings.name = name; E.settings = state.settings; Vocab.init(state); save(); close(); E.toast('Progress reset'); } };
+    E.$('#resetBtn').onclick = () => { if (confirm(`Reset ALL progress for ${profiles.active}? This cannot be undone.`)) { state = defaults(); E.settings = state.settings; Vocab.init(state); save(); close(); E.toast('Progress reset'); } };
+  }
+
+  /* ---------------- PROFILES sheet ---------------- */
+  function openProfiles(){
+    save();
+    const ov = E.$('#overlay'); ov.classList.remove('hidden');
+    const rows = profiles.list.map(name => { const st = name === profiles.active ? state : loadFor(name); const sessions = Object.values(st.history).filter(r => r.complete).length;
+      return `<button class="prow ${name === profiles.active ? 'active' : ''}" data-p="${E.esc(name)}"><span class="avatar big" style="background:${avatarG(name)}">${E.esc(name[0].toUpperCase())}</span><span class="ptxt"><b>${E.esc(name)}</b><small>${streak(st)} day streak · Brain Index ${bpi(st)} · ${sessions} workout${sessions === 1 ? '' : 's'} · ${Vocab.learnedCount(st)} words</small></span>${name === profiles.active ? `<span class="done">${E.ICONS.check}</span>` : `<span class="link">Play</span>`}</button>`; }).join('');
+    ov.innerHTML = `<div class="sheet"><div class="grab"></div><h3>Who's training?</h3>
+      <div class="plist">${rows}</div>
+      <div class="addrow"><input class="nameinput" id="newProfile" placeholder="Add a profile…" maxlength="16" autocomplete="off"><button class="btn sm" id="addProfile">Add</button></div>
+      ${profiles.list.length > 1 ? `<button class="textbtn" id="removeProfile" style="margin-top:14px;font-size:13px">Remove ${E.esc(profiles.active)}'s profile</button>` : ''}
+      <button class="btn ghost block" id="closeSheet" style="margin-top:14px">Done</button></div>`;
+    const close = () => { ov.classList.add('hidden'); ov.innerHTML = ''; };
+    ov.onclick = e => { if (e.target === ov) close(); };
+    E.$('#closeSheet').onclick = close;
+    E.$$('.prow', ov).forEach(b => b.onclick = () => { const n = b.dataset.p; close(); if (n !== profiles.active) { E.sfx('tap'); switchProfile(n); } });
+    E.$('#addProfile').onclick = () => { const n = E.$('#newProfile').value.trim().replace(/[^\w .-]/g, ''); if (!n) return; if (profiles.list.some(x => x.toLowerCase() === n.toLowerCase())) { E.toast('That name is taken'); return; } profiles.list.push(n); saveProfiles(); close(); switchProfile(n); };
+    const rm = E.$('#removeProfile'); if (rm) rm.onclick = () => { const n = profiles.active; if (!confirm(`Remove ${n} and delete all their progress? This cannot be undone.`)) return; profiles.list = profiles.list.filter(x => x !== n); try { localStorage.removeItem(skey(n)); } catch(e){} profiles.active = profiles.list[0]; saveProfiles(); state = load(); E.settings = state.settings; Vocab.init(state); save(); close(); E.toast(`Removed ${n}`); go('home'); };
   }
 
   /* ---------------- GAME FLOW ---------------- */
@@ -160,7 +195,7 @@
     const intro = E.h(`<div class="intro" style="--g:${g.g};--gc:${g.gc};--gdim:${g.gdim}">
       <button class="iconbtn closex" aria-label="Close">${E.ICONS.close}</button>
       <div class="art"><div class="orb">${g.icon}</div></div>
-      <div class="cat">${G.CATEGORIES[g.category].name}${opts.daily ? ` · Game ${planFor(today()).indexOf(id) + 1} of ${DAILY_COUNT}` : ''}</div>
+      <div class="cat">${G.CATEGORIES[g.category].name}${opts.daily ? ` · Game ${planFor(today()).indexOf(id) + 1} of ${planFor(today()).length}` : ''}</div>
       <h1>${g.name}</h1><div class="tag">${g.tagline}</div>
       <ul class="howto">${g.howto.map((h, i) => `<li><i>${i + 1}</i><span>${h}</span></li>`).join('')}</ul>
       <div class="lvlrow"><div>${g.noLevel ? `Words learned <b>${Vocab.learnedCount(state)}</b>` : `Level <b>${lvl}</b>`}</div><div class="best">Best <b>${state.best[id] || '—'}</b></div></div>

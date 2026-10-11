@@ -396,6 +396,24 @@ svg{display:block}
 .installbox b{color:var(--text)}
 .nameinput{padding:10px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--line);color:var(--text);outline:none;width:150px;-webkit-user-select:text;user-select:text}
 
+/* profiles */
+.profilechip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-weight:700;font-size:13px;max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .15s}
+.profilechip:active{transform:scale(.95)}
+.avatar{width:30px;height:30px;border-radius:50%;display:inline-grid;place-items:center;font-weight:800;font-size:14px;color:#fff;flex:none;box-shadow:0 4px 12px -4px rgba(0,0,0,.6)}
+.avatar.big{width:46px;height:46px;font-size:20px;border-radius:16px}
+.plist{display:flex;flex-direction:column;gap:8px}
+.prow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--card);border:1px solid var(--line);text-align:left;width:100%;transition:transform .15s}
+.prow:active{transform:scale(.985)}
+.prow.active{box-shadow:0 0 0 2px rgba(255,255,255,.22) inset}
+.prow .ptxt{flex:1;min-width:0}
+.prow .ptxt b{display:block;font-size:16px}
+.prow .ptxt small{display:block;color:var(--muted);font-size:12px;margin-top:2px;line-height:1.3}
+.prow .done{width:26px;height:26px;border-radius:50%;background:var(--good);display:grid;place-items:center;color:#063;flex:none}
+.prow .done svg{width:14px;height:14px}
+.addrow{display:flex;gap:8px;margin-top:12px}
+.addrow .nameinput{flex:1;width:auto}
+.pads.big{gap:9px}
+
 /* pause overlay */
 .pauseov{position:fixed;inset:0;z-index:65;background:rgba(5,6,14,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:grid;place-items:center;padding:24px;animation:fadein .2s}
 .pausecard{width:100%;max-width:360px;background:#151830;border:1px solid var(--line);border-radius:28px;padding:26px 22px;text-align:center;animation:cardin .3s ease}
